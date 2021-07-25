@@ -13,4 +13,9 @@ public class WaltApplication {
     public static void main(String[] args) {
         SpringApplication.run(WaltApplication.class);
     }
+
+    public static Logger getLog() {
+        return log;
+    }
+
 }

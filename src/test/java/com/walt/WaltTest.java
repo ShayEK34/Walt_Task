@@ -1,10 +1,7 @@
 package com.walt;
 
 import com.walt.dao.*;
-import com.walt.model.City;
-import com.walt.model.Customer;
-import com.walt.model.Driver;
-import com.walt.model.Restaurant;
+import com.walt.model.*;
 import org.assertj.core.util.Lists;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,9 +12,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.test.annotation.DirtiesContext;
 
 import javax.annotation.Resource;
+import java.util.Date;
 import java.util.List;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.*;
 
 @SpringBootTest()
 @DirtiesContext(classMode = DirtiesContext.ClassMode.BEFORE_EACH_TEST_METHOD)
@@ -112,4 +110,131 @@ public class WaltTest {
         assertEquals(((List<City>) cityRepository.findAll()).size(),4);
         assertEquals((driverRepository.findAllDriversByCity(cityRepository.findByName("Beer-Sheva")).size()), 2);
     }
+
+    /**
+     * --------------------------- createOrderAndAssignDriver Tests ----------------------------------
+     */
+
+    /**
+     * This test check if delivery is not created if a null input parameter is given.
+     * The data that returned is NULL.
+     */
+    @Test
+    public void createOrderAndAssignDriver_test_num_1(){
+        Restaurant restaurant = restaurantRepository.findByName("cafe");
+        assertNull(waltService.createOrderAndAssignDriver(null,restaurant,new Date()));
+    }
+
+    /**
+     * This test check if delivery is not created if the given customer and the given restaurant are not in
+     * the same city.
+     * The data that returned is NULL.
+     */
+    @Test
+    public void createOrderAndAssignDriver_test_num_2(){
+        Customer customer= customerRepository.findByName("Mozart");
+        Restaurant restaurant=restaurantRepository.findByName("cafe");
+        assertNull(waltService.createOrderAndAssignDriver(customer,restaurant,new Date()));
+    }
+
+    /**
+     * This test check if delivery is not created in case that there are not available drivers in in the given
+     * delivery time at the same city that the restaurant is located.
+     * The data that returned is NULL.
+     */
+    @Test
+    public void createOrderAndAssignDriver_test_num_3() {
+        Customer customer = customerRepository.findByName("Mozart");
+        Restaurant restaurant = restaurantRepository.findByName("meat");
+        Date date=new Date();
+        //there are only 3 drivers in jerusalem
+        Delivery delivery1 = waltService.createOrderAndAssignDriver(customer, restaurant, date);
+        Delivery delivery2 = waltService.createOrderAndAssignDriver(customer, restaurant, date);
+        Delivery delivery3 = waltService.createOrderAndAssignDriver(customer, restaurant, date);
+        assertNull(waltService.createOrderAndAssignDriver(customer, restaurant, date));
+    }
+
+    /**
+     * This test check if a new delivery is created if all the given input parameters are valid and if
+     * there is a available driver that can take the delivery.
+     */
+    @Test
+    public void createOrderAndAssignDriver_test_num_4(){
+        Customer customer= customerRepository.findByName("Mozart");
+        Restaurant restaurant=restaurantRepository.findByName("meat");
+        Delivery delivery = waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        assertNotNull(delivery);
+        assertEquals(delivery.getCustomer().getName(),customer.getName());
+        assertEquals(delivery.getCustomer().getCity(),customer.getCity());
+        assertEquals(delivery.getCustomer().getId(),customer.getId());
+        assertEquals(delivery.getRestaurant().getName(),restaurant.getName());
+        assertEquals(delivery.getRestaurant().getId(),restaurant.getId());
+    }
+
+    /**
+     * This test check if all the deliveries created are with distance between 0-20 km.
+     */
+    @Test
+    public void createOrderAndAssignDriver_test_num_5(){
+        Customer customer= customerRepository.findByName("Mozart");
+        Restaurant restaurant=restaurantRepository.findByName("meat");
+        Delivery delivery1=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        Delivery delivery2=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        Delivery delivery3=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        assertTrue(delivery1.getDistance()<20);
+        assertTrue(delivery2.getDistance()<20);
+        assertTrue(delivery3.getDistance()<20);
+    }
+
+
+    /**
+     * --------------------------- getDriverRankReport Tests ----------------------------------
+     */
+
+    /**
+     * This test check if the data that retrieved from the method getDriverRankReport is valid and correct.
+     */
+    @Test
+    public void getDriverRankReport_test(){
+        Customer customer= customerRepository.findByName("Mozart");
+        Restaurant restaurant=restaurantRepository.findByName("meat");
+        Delivery delivery1=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        Delivery delivery2=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        Delivery delivery3=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        List<DriverDistance> driversTotalDistances = waltService.getDriverRankReport();
+        assertEquals(driversTotalDistances.size(),3);
+        String driverName = driversTotalDistances.get(0).getDriver().getName();
+        Long driverCityID = driversTotalDistances.get(0).getDriver().getCity().getId();
+        //The distance is random so I will check if the driver with the highest distance is one of
+        // the drivers from Jerusalem (because the restaurant of the test located in Jerusalem)
+        assertTrue(driverName.equals("Robert")||driverName.equals("David")||driverName.equals("Neta"));
+        assertEquals(driverCityID,restaurant.getCity().getId());
+    }
+
+    /**
+     * --------------------------- getDriverRankReportByCity Tests ----------------------------------
+     */
+
+    /**
+     * This test check if the data that retrieved from the method getDriverRankReportByCity is valid and correct.
+     */
+    @Test
+    public void getDriverRankReportByCity_test(){
+        Customer customer= customerRepository.findByName("Rachmaninoff");
+        Restaurant restaurant=restaurantRepository.findByName("chinese");
+        City city=cityRepository.findByName("Tel-Aviv");
+        Delivery delivery1=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        Delivery delivery2=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        Delivery delivery3=waltService.createOrderAndAssignDriver(customer,restaurant,new Date());
+        List<DriverDistance> driversTotalDistancesByCity = waltService.getDriverRankReportByCity(city);
+        assertEquals(driversTotalDistancesByCity.size(),3);
+        String driverName = driversTotalDistancesByCity.get(0).getDriver().getName();
+        Long driverCityID = driversTotalDistancesByCity.get(0).getDriver().getCity().getId();
+        //The distance is random so I will check if the driver with the highest distance by city is one of
+        // the drivers from Tel-Aviv (because the restaurant of the test located in Tel-Aviv)
+        assertTrue(driverName.equals("Mary")||driverName.equals("Patricia")||driverName.equals("Daniel"));
+        assertEquals(driverCityID,restaurant.getCity().getId());
+
+    }
+
 }

@@ -15,6 +15,16 @@ import java.util.List;
 @Repository
 public interface DeliveryRepository extends CrudRepository<Delivery, Long> {
 
+    List<Delivery> findDeliveryByDriver(Driver driver);
+
+    List<Delivery> findAllDeliveryByDriverAndDeliveryTime( Driver driver, Date deliveryTime);
+
+    @Query("select d.driver AS driver, sum(d.distance) AS totalDistance from Delivery d group by driver order by totalDistance desc")
+    List<DriverDistance> findTotalDistancePerDriver();
+
+    @Query("select d.driver AS driver, sum(d.distance) AS totalDistance from Delivery d where "+"d.driver.city =:city group by driver order by totalDistance desc")
+    List<DriverDistance> findTotalDistancePerDriverByCity(@Param("city")City city);
+
 }
 
 
